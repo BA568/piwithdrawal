@@ -105,7 +105,16 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     balance_ref.set(balance)
     await update.message.reply_text(f"💰 Your current Pi balance is: {balance}")
 
+async def set_webhook():
+    from telegram import Bot
+    bot = Bot(token=os.getenv("BOT_TOKEN"))
+    url = os.getenv("WEBHOOK_URL")  # You must set this in Railway
+    await bot.set_webhook(url=url)
+
 def main():
+    import asyncio
+    asyncio.run(set_webhook())
+
     token = os.getenv("BOT_TOKEN")
     app = ApplicationBuilder().token(token).build()
     app.add_handler(CommandHandler("start", start))
@@ -113,7 +122,11 @@ def main():
     app.add_handler(CommandHandler("approve", approve))
     app.add_handler(CommandHandler("balance", balance))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    app.run_polling(drop_pending_updates=True)
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 8000)),
+        webhook_url=os.getenv("WEBHOOK_URL")
+    )
 
 if __name__ == "__main__":
     main()
