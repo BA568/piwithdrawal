@@ -70,7 +70,7 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         wallet = data["wallet"]
 
         balance_ref = db.reference(f"/users/{user_id}/balance")
-        current_balance = balance_ref.get() or 500.0  # default balance
+        current_balance = balance_ref.get() or 500.0
 
         if current_balance < amount:
             await update.message.reply_text("❌ Insufficient balance.")
@@ -102,7 +102,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     balance_ref = db.reference(f"/users/{user_id}/balance")
     balance = balance_ref.get() or 500.0
-    balance_ref.set(balance)  # Ensure it's initialized
+    balance_ref.set(balance)
     await update.message.reply_text(f"💰 Your current Pi balance is: {balance}")
 
 def main():
@@ -113,7 +113,7 @@ def main():
     app.add_handler(CommandHandler("approve", approve))
     app.add_handler(CommandHandler("balance", balance))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
