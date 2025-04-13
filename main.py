@@ -66,16 +66,44 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = ref.get()
 
     if data and data.get("passcode") == code:
+        amount = float(data["amount"])
+        wallet = data["wallet"]
+
+        balance_ref = db.reference(f"/users/{user_id}/balance")
+        current_balance = balance_ref.get() or 500.0  # default balance
+
+        if current_balance < amount:
+            await update.message.reply_text("❌ Insufficient balance.")
+            return
+
+        new_balance = current_balance - amount
+        balance_ref.set(new_balance)
+
         tx_hash = f"0xSIMULATED{random.randint(1000000,9999999)}"
+        db.reference(f"/logs/{tx_hash}").set({
+            "user_id": user_id,
+            "wallet": wallet,
+            "amount": amount,
+            "balance_after": new_balance
+        })
+
         await context.bot.send_message(chat_id=int(user_id),
-            text=f"✅ Approved!\n\n💰 Amount: {data['amount']}\n🏦 Wallet: {data['wallet']}\n\n🔁 TX HASH: `{tx_hash}`",
+            text=f"✅ Approved!\n\n💰 Amount: {amount}\n🏦 Wallet: {wallet}\n\n🔁 TX HASH: `{tx_hash}`\n\n🪙 New Balance: {new_balance}",
             parse_mode='Markdown')
 
         await context.bot.send_message(chat_id=update.effective_chat.id,
-            text=f"✅ Sent to {data['wallet']} with hash {tx_hash}")
+            text=f"✅ Sent to {wallet} with hash {tx_hash}\nNew balance: {new_balance}")
+
         ref.delete()
     else:
         await update.message.reply_text("❌ Invalid passcode or request")
+
+async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    balance_ref = db.reference(f"/users/{user_id}/balance")
+    balance = balance_ref.get() or 500.0
+    balance_ref.set(balance)  # Ensure it's initialized
+    await update.message.reply_text(f"💰 Your current Pi balance is: {balance}")
 
 def main():
     token = os.getenv("BOT_TOKEN")
@@ -83,6 +111,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("withdraw", withdraw))
     app.add_handler(CommandHandler("approve", approve))
+    app.add_handler(CommandHandler("balance", balance))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.run_polling()
 
